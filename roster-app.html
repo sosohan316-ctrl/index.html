@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Assignment Board">
+<title>Assignment Board</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#16211c;
+    --ink-soft:#3c4a43;
+    --paper:#f5f3ec;
+    --paper-line:#dcd6c6;
+    --panel:#ffffff;
+    --accent:#2c6e63;
+    --accent-soft:#e4efec;
+    --gold:#b8862c;
+    --danger:#a4483a;
+    --danger-soft:#f5e6e2;
+    --radius:3px;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,"Segoe UI",Roboto,"Noto Sans KR","Apple SD Gothic Neo",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:960px;margin:0 auto;padding:20px 16px 60px;}
+  header.top{
+    display:flex;align-items:baseline;justify-content:space-between;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:14px;margin-bottom:18px;
+  }
+  header.top h1{
+    font-family:Georgia,serif;
+    font-size:1.5rem;font-weight:700;letter-spacing:-0.01em;margin:0;
+  }
+  header.top .sub{font-size:0.8rem;color:var(--ink-soft);}
+
+  nav.tabs{
+    display:flex;gap:2px;margin-bottom:18px;
+    border-bottom:1px solid var(--paper-line);
+  }
+  nav.tabs button{
+    flex:1;padding:11px 6px;background:transparent;border:none;
+    border-bottom:3px solid transparent;
+    font-family:inherit;font-size:0.86rem;color:var(--ink-soft);
+    cursor:pointer;transition:color .15s, border-color .15s;
+  }
+  nav.tabs button.active{color:var(--ink);border-bottom-color:var(--accent);font-weight:700;}
+  nav.tabs button:hover{color:var(--ink);}
+
+  section.view{display:none;}
+  section.view.active{display:block;}
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--paper-line);
+    border-radius:var(--radius);
+    padding:16px;margin-bottom:14px;
+  }
+  .card h2{font-size:1rem;margin:0 0 10px;font-family:Georgia,serif;}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .row + .row{margin-top:8px;}
+
+  input[type=text], input[type=tel], select{
+    font-family:inherit;font-size:0.92rem;
+    padding:8px 10px;border:1px solid var(--paper-line);
+    border-radius:var(--radius);background:#fff;color:var(--ink);
+  }
+  input[type=text]:focus, input[type=tel]:focus, select:focus{
+    outline:none;border-color:var(--accent);
+  }
+  button.btn{
+    font-family:inherit;font-size:0.88rem;padding:8px 14px;
+    border-radius:var(--radius);border:1px solid var(--ink);
+    background:var(--ink);color:#fff;cursor:pointer;
+  }
+  button.btn:hover{background:#0d1512;}
+  button.btn.secondary{background:#fff;color:var(--ink);border-color:var(--ink);}
+  button.btn.secondary:hover{background:var(--accent-soft);}
+  button.btn.danger{background:#fff;color:var(--danger);border-color:var(--danger);}
+  button.btn.danger:hover{background:var(--danger-soft);}
+  button.btn.small{padding:5px 10px;font-size:0.78rem;}
+  button.btn.icon{padding:4px 8px;font-size:0.78rem;line-height:1;}
+  button.btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+  ul.list{list-style:none;margin:0;padding:0;}
+  ul.list li{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:9px 2px;border-bottom:1px solid var(--paper-line);
+    font-size:0.92rem;gap:8px;flex-wrap:wrap;
+  }
+  ul.list li:last-child{border-bottom:none;}
+  ul.list .meta{color:var(--ink-soft);font-size:0.8rem;}
+  ul.list .left{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+  ul.list .right{display:flex;align-items:center;gap:6px;}
+
+  /* Role list rows: stack into two full-width rows so long labels never
+     get squeezed down to near-zero width (which made CJK text wrap
+     one character per line). */
+  ul.list li.role-li{
+    flex-direction:column;
+    align-items:stretch;
+    gap:8px;
+  }
+  ul.list li.role-li .left{ width:100%; flex:none; }
+  ul.list li.role-li .left span:first-child{ white-space:normal; word-break:normal; }
+  ul.list li.role-li .right{ width:100%; flex-wrap:wrap; justify-content:flex-start; }
+
+  .weekday-picker{display:flex;gap:6px;flex-wrap:wrap;}
+
+  .month-nav{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .month-nav .label{font-family:Georgia,serif;font-size:1.15rem;min-width:120px;text-align:center;}
+
+  .week-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:0.86rem;}
+  .week-row .wk-label{flex:0 0 170px;color:var(--ink-soft);}
+
+  .day-block{
+    background:var(--panel);border:1px solid var(--paper-line);
+    border-radius:var(--radius);margin-bottom:12px;overflow:hidden;
+  }
+  .day-block .day-head{
+    background:var(--ink);color:#fff;padding:9px 14px;
+    font-size:0.85rem;display:flex;justify-content:space-between;
+  }
+  .day-block .day-head .n{color:#d8d3c0;font-size:0.78rem;}
+  .cat-banner{
+    display:flex;align-items:center;gap:8px;
+    padding:8px 14px;font-weight:700;font-size:0.88rem;color:#fff;
+  }
+  .cat-banner .swatch{
+    width:16px;height:16px;border-radius:3px;background:rgba(255,255,255,0.35);
+    flex:0 0 auto;
+  }
+  .assign-row{
+    display:flex;align-items:center;gap:8px;padding:9px 14px;
+    border-bottom:1px solid var(--paper-line);flex-wrap:wrap;
+  }
+  .assign-row:last-child{border-bottom:none;}
+  .assign-row .role-name{flex:0 0 110px;font-size:0.86rem;font-weight:700;color:var(--ink-soft);}
+  .assign-row .topic-input{flex:1 1 140px;min-width:110px;font-size:0.86rem;}
+  .assign-row .assignees{display:flex;gap:6px;flex-wrap:wrap;flex:1 1 100%;min-width:120px;}
+  .assign-row select{flex:1;min-width:120px;max-width:180px;}
+  .chip{
+    display:inline-flex;align-items:center;gap:5px;
+    background:var(--accent-soft);color:var(--accent);
+    border-radius:14px;padding:4px 8px 4px 11px;font-size:0.82rem;
+  }
+  .chip button{
+    background:none;border:none;color:var(--accent);font-size:0.9rem;
+    cursor:pointer;padding:0;line-height:1;font-weight:700;
+  }
+  .empty-note{
+    padding:22px 14px;text-align:center;color:var(--ink-soft);font-size:0.88rem;
+  }
+  .badge{
+    display:inline-block;font-size:0.72rem;padding:2px 7px;border-radius:10px;
+    color:#fff;flex:0 0 auto;
+  }
+  .reminder-card{
+    border-left:4px solid var(--accent);
+  }
+  .reminder-item{
+    background:var(--accent-soft);border-radius:var(--radius);
+    padding:12px;margin-bottom:10px;
+  }
+  .reminder-item .txt{
+    font-size:0.88rem;white-space:pre-wrap;margin:8px 0;line-height:1.5;
+  }
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+  .note{font-size:0.8rem;color:var(--ink-soft);line-height:1.5;}
+  .cat-row{display:flex;align-items:center;gap:10px;padding:7px 0;}
+  .cat-row .swatch2{width:18px;height:18px;border-radius:4px;flex:0 0 auto;}
+  .cat-row input[type=text]{flex:1;}
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:#fff;padding:9px 18px;border-radius:20px;
+    font-size:0.85rem;opacity:0;pointer-events:none;transition:opacity .2s;
+    z-index:50;
+  }
+  .toast.show{opacity:1;}
+
+  body.print-mode .print-hide{ display:none !important; }
+  @media print{
+    .print-hide{ display:none !important; }
+    .no-print{ display:none !important; }
+    [id^="printModeNotice-"]{ display:none !important; }
+    body{ background:#fff; }
+    .app{ max-width:none; padding:0; }
+    .day-block{ break-inside:avoid; page-break-inside:avoid; border-color:#999; }
+    .assign-row .assignees{ min-width:0; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Assignment Board</h1>
+    <div class="sub" id="peopleCount"></div>
+  </header>
+
+  <div class="card print-hide" id="saveLoadCard" style="border-color:var(--gold);">
+    <h2>Save &amp; Load Data</h2>
+    <p class="note" id="storageStatusNote"></p>
+    <div class="row">
+      <button class="btn" id="saveFileBtn">Save to File</button>
+      <button class="btn secondary" id="loadFileBtnTrigger">Load from File</button>
+      <input type="file" id="loadFileInput" accept="application/json" style="display:none;">
+    </div>
+  </div>
+
+  <nav class="tabs print-hide">
+    <button data-tab="people" class="active">People</button>
+    <button data-tab="midweek">Midweek</button>
+    <button data-tab="weekend">Weekend</button>
+    <button data-tab="reminders">Reminders</button>
+  </nav>
+
+  <!-- People -->
+  <section class="view active" id="view-people">
+    <div class="card">
+      <h2>Add Person</h2>
+      <div class="row">
+        <input type="text" id="personName" placeholder="Name">
+        <input type="tel" id="personPhone" placeholder="Phone (optional)">
+        <button class="btn" id="addPersonBtn">Add</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Roster</h2>
+      <ul class="list" id="peopleList"></ul>
+    </div>
+  </section>
+
+  <!-- Midweek -->
+  <section class="view" id="view-midweek">
+    <div id="panel-midweek"></div>
+  </section>
+
+  <!-- Weekend -->
+  <section class="view" id="view-weekend">
+    <div id="panel-weekend"></div>
+  </section>
+
+  <!-- Reminders -->
+  <section class="view" id="view-reminders">
+    <div class="card reminder-card">
+      <h2>Reminder Settings</h2>
+      <p class="note">
+        This app runs only in the browser, so it can't send texts or messages automatically.
+        Instead, it lists who has an assignment coming up and gives you ready-to-send reminder text — tap "Copy Message" and paste it into KakaoTalk or a text message.
+      </p>
+      <div class="row">
+        <label class="note">Remind:</label>
+        <select id="leadDays">
+          <option value="1">1 day before</option>
+          <option value="2" selected>2 days before</option>
+          <option value="3">3 days before</option>
+          <option value="4">4 days before</option>
+          <option value="5">5 days before</option>
+          <option value="6">6 days before</option>
+          <option value="7">7 days before</option>
+        </select>
+        <button class="btn secondary small" id="refreshReminders">Recalculate</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Recipients for Today</h2>
+      <div id="reminderList"></div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const { jsPDF } = window.jspdf || {};
+const toastEl = document.getElementById('toast');
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'), 1800);
+}
+
+// App UI uses English. PDF output and reminder messages are generated in
+// Chinese for the congregation, independent of the app's own language.
+const WEEKDAY_LABELS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WEEKDAY_LABELS_CN = ['日','一','二','三','四','五','六'];
+const TYPE_LABELS = { midweek: 'Midweek Meeting', weekend: 'Weekend Meeting' };
+const TYPE_LABELS_CN = { midweek: '周中任命', weekend: '周末任命' };
+
+// Fixed sections: colors are fixed, titles are editable. Used for the midweek meeting only.
+const DEFAULT_CATEGORIES = [
+  { id:'treasures', label:'上帝话语的宝藏', color:'#1f7f6e' },
+  { id:'ministry',  label:'用心准备传道工作', color:'#c9861a' },
+  { id:'living',    label:'基督徒的生活',   color:'#c0392b' }
+];
+
+// ---------- in-memory state ----------
+let people = [];  // {id, name, phone}
+let rolesByType = { midweek: [], weekend: [] }; // {id, name, category} - category only matters for midweek
+let config = {
+  categories: DEFAULT_CATEGORIES.map(c=>({...c})),
+  defaultWeekday: { midweek: 2, weekend: 0 } // 0=Sun ... 6=Sat
+};
+let currentMonth = new Date();
+currentMonth.setDate(1);
+let assignmentsByMonth = {};       // [monthKey][dateKey][roleId] = { people:[personId,...], topic:'' }
+let monthAssignments = {};         // reference to the currently viewed month
+let weekOverridesByMonth = {};     // [monthKey][type][weekIdx] = weekday(0-6) | null (no meeting that week)
+
+function ensureConfigShape(){
+  if(!config.categories || config.categories.length!==3){
+    config.categories = DEFAULT_CATEGORIES.map(c=>({...c}));
+  }
+  if(!config.defaultWeekday){
+    config.defaultWeekday = { midweek: 2, weekend: 0 };
+  }
+  if(config.defaultWeekday.midweek===undefined) config.defaultWeekday.midweek = 2;
+  if(config.defaultWeekday.weekend===undefined) config.defaultWeekday.weekend = 0;
+}
+
+// Migrate an older export (single `roles` array + `config.weekdays` array) into the current shape.
+function migrateOldShape(rawData){
+  if(rawData.rolesByType) return;
+  if(Array.isArray(rawData.roles)){
+    rawData.rolesByType = { midweek: rawData.roles, weekend: [] };
+  }
+  if(rawData.config && Array.isArray(rawData.config.weekdays)){
+    const wds = rawData.config.weekdays;
+    rawData.config.defaultWeekday = { midweek: wds[0]!==undefined?wds[0]:2, weekend: wds[1]!==undefined?wds[1]:0 };
+    delete rawData.config.weekdays;
+  }
+}
+
+function migrateRoles(){
+  Object.values(rolesByType).forEach(list=>{
+    list.forEach(r=>{ if(!r.category) r.category = 'common'; });
+  });
+}
+// Migrate a role entry from a bare array of personIds (old) into { people, topic, skip } (current).
+function migrateAssignments(){
+  Object.values(assignmentsByMonth).forEach(monthObj=>{
+    Object.values(monthObj).forEach(dayObj=>{
+      Object.keys(dayObj).forEach(roleId=>{
+        const v = dayObj[roleId];
+        if(v == null){ dayObj[roleId] = { people: [], topic: '', skip: false }; }
+        else if(Array.isArray(v)){ dayObj[roleId] = { people: v, topic: '', skip: false }; }
+        else if(typeof v === 'object'){
+          if(!Array.isArray(v.people)) v.people = [];
+          if(typeof v.topic !== 'string') v.topic = '';
+          if(typeof v.skip !== 'boolean') v.skip = false;
+        }else{
+          dayObj[roleId] = { people: [], topic: '', skip: false };
+        }
+      });
+    });
+  });
+}
+function getRoleEntry(dayObj, roleId){
+  let v = dayObj[roleId];
+  if(v == null){ v = { people: [], topic: '', skip: false }; }
+  else if(Array.isArray(v)){ v = { people: v, topic: '', skip: false }; }
+  else if(typeof v === 'object'){
+    if(!Array.isArray(v.people)) v.people = [];
+    if(typeof v.topic !== 'string') v.topic = '';
+    if(typeof v.skip !== 'boolean') v.skip = false;
+  }else{
+    v = { people: [], topic: '', skip: false };
+  }
+  dayObj[roleId] = v;
+  return v;
+}
+// Builds the display text for a role's line: combines the fixed role name with
+// that week's topic. If the role has no fixed name (number-only items whose
+// title IS the weekly topic), the topic stands in as the whole line.
+function roleDisplayText(role, entry){
+  const name = (role.name || '').trim();
+  const topic = (entry.topic || '').trim();
+  if(name && topic) return `${name} — ${topic}`;
+  return topic || name || '';
+}
+
+// ---------- autosave ----------
+let hasLocalStorage = false;
+try{
+  localStorage.setItem('__roster_test__','1');
+  localStorage.removeItem('__roster_test__');
+  hasLocalStorage = true;
+}catch(e){ hasLocalStorage = false; }
+
+const LS_KEYS = { people:'roster_people', rolesByType:'roster_rolesByType', config:'roster_config', assignments:'roster_assignments', weekOverrides:'roster_weekOverrides' };
+
+function loadPersisted(){
+  if(!hasLocalStorage) return;
+  try{
+    const p = localStorage.getItem(LS_KEYS.people);
+    const rt = localStorage.getItem(LS_KEYS.rolesByType);
+    const rtOld = localStorage.getItem('roster_roles');
+    const c = localStorage.getItem(LS_KEYS.config);
+    const a = localStorage.getItem(LS_KEYS.assignments);
+    const wo = localStorage.getItem(LS_KEYS.weekOverrides);
+    if(p) people = JSON.parse(p);
+    if(rt) rolesByType = JSON.parse(rt);
+    else if(rtOld) rolesByType = { midweek: JSON.parse(rtOld), weekend: [] };
+    if(c) config = JSON.parse(c);
+    if(a) assignmentsByMonth = JSON.parse(a);
+    if(wo) weekOverridesByMonth = JSON.parse(wo);
+  }catch(e){ console.error('autoload failed', e); }
+  ensureConfigShape();
+  migrateRoles();
+  migrateAssignments();
+}
+function persistAll(){
+  if(!hasLocalStorage) return;
+  try{
+    assignmentsByMonth[monthKey(currentMonth)] = monthAssignments;
+    localStorage.setItem(LS_KEYS.people, JSON.stringify(people));
+    localStorage.setItem(LS_KEYS.rolesByType, JSON.stringify(rolesByType));
+    localStorage.setItem(LS_KEYS.config, JSON.stringify(config));
+    localStorage.setItem(LS_KEYS.assignments, JSON.stringify(assignmentsByMonth));
+    localStorage.setItem(LS_KEYS.weekOverrides, JSON.stringify(weekOverridesByMonth));
+  }catch(e){ console.error('autosave failed', e); }
+}
+function renderStorageStatus(){
+  const el = document.getElementById('storageStatusNote');
+  if(hasLocalStorage){
+    el.innerHTML = 'This browser saves automatically — your data will still be here next time you open it. To move it to another device or back it up, tap <strong>"Save to File"</strong>.';
+  }else{
+    el.innerHTML = 'Autosave isn\'t available in this view (a refresh will clear your data). Save this file to your device and open it in Safari/Chrome to enable autosave. Until then, tap <strong>"Save to File"</strong> after each session and use <strong>"Load from File"</strong> next time.';
+  }
+}
+
+function setVal(){ persistAll(); }
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function dateKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function categoryById(id){ return config.categories.find(c=>c.id===id); }
+function personName(id){ const p = people.find(x=>x.id===id); return p ? p.name : ''; }
+
+function weekdayOptionsHtml(selected, allowNone){
+  let html = '';
+  if(allowNone){
+    html += `<option value="none" ${selected===null||selected===undefined?'selected':''}>No meeting this week</option>`;
+  }
+  WEEKDAY_LABELS.forEach((label, idx)=>{
+    const full = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][idx];
+    html += `<option value="${idx}" ${String(selected)===String(idx)?'selected':''}>${full}</option>`;
+  });
+  return html;
+}
+
+// Calendar weeks (Monday start) overlapping the given month.
+function getWeekAnchors(monthDate){
+  const year = monthDate.getFullYear(), month = monthDate.getMonth();
+  const firstOfMonth = new Date(year, month, 1);
+  const firstMonday = new Date(firstOfMonth);
+  const offsetFromMonday = (firstOfMonth.getDay() + 6) % 7;
+  firstMonday.setDate(firstOfMonth.getDate() - offsetFromMonday);
+  const lastOfMonth = new Date(year, month+1, 0);
+  const anchors = [];
+  let cursor = new Date(firstMonday);
+  while(cursor <= lastOfMonth){
+    anchors.push(new Date(cursor));
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()+7);
+  }
+  return anchors;
+}
+
+function getMeetingDatesForType(type, monthDate){
+  const monthNum = monthDate.getMonth();
+  const mk = monthKey(monthDate);
+  const anchors = getWeekAnchors(monthDate);
+  const overridesForMonth = (weekOverridesByMonth[mk] && weekOverridesByMonth[mk][type]) || {};
+  const dates = [];
+  anchors.forEach((anchor, idx)=>{
+    let wd;
+    if(Object.prototype.hasOwnProperty.call(overridesForMonth, idx)){
+      wd = overridesForMonth[idx];
+    }else{
+      wd = config.defaultWeekday[type];
+    }
+    if(wd === null || wd === undefined) return;
+    // anchor is always that week's Monday; convert Monday=1-based weekday index to an offset from Monday.
+    const offsetDays = (wd - 1 + 7) % 7;
+    const d = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()+offsetDays);
+    if(d.getMonth() === monthNum) dates.push(d);
+  });
+  return dates;
+}
+
+function formatDateEN(dt){
+  return `${MONTH_LABELS[dt.getMonth()]} ${dt.getDate()} (${WEEKDAY_LABELS[dt.getDay()]})`;
+}
+function formatDateCN(dt){
+  return `${dt.getMonth()+1}月${dt.getDate()}日 (星期${WEEKDAY_LABELS_CN[dt.getDay()]})`;
+}
+
+// ---------- init ----------
+function init(){
+  ensureConfigShape();
+  loadPersisted();
+  renderPeople();
+  buildPanelSkeleton('midweek');
+  buildPanelSkeleton('weekend');
+  renderTypeAll('midweek');
+  renderTypeAll('weekend');
+  loadMonth();
+  renderPeopleCount();
+  renderStorageStatus();
+  bindTabs();
+  bindPeople();
+  bindReminders();
+  bindSaveLoad();
+  renderReminders();
+}
+init();
+
+// ---------- save / load file ----------
+function bindSaveLoad(){
+  document.getElementById('saveFileBtn').addEventListener('click', saveToFile);
+  const trigger = document.getElementById('loadFileBtnTrigger');
+  const input = document.getElementById('loadFileInput');
+  trigger.addEventListener('click', ()=> input.click());
+  input.addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      try{
+        const data = JSON.parse(ev.target.result);
+        migrateOldShape(data);
+        people = data.people || [];
+        rolesByType = data.rolesByType || { midweek: [], weekend: [] };
+        config = data.config || { categories: DEFAULT_CATEGORIES.map(c=>({...c})), defaultWeekday:{midweek:2,weekend:0} };
+        assignmentsByMonth = data.assignmentsByMonth || {};
+        weekOverridesByMonth = data.weekOverridesByMonth || {};
+        ensureConfigShape();
+        migrateRoles();
+        migrateAssignments();
+        renderPeople();
+        renderTypeAll('midweek');
+        renderTypeAll('weekend');
+        renderPeopleCount();
+        loadMonth();
+        renderReminders();
+        persistAll();
+        toast('Loaded.');
+      }catch(err){
+        toast('Couldn\'t read that file. Make sure it was saved by this app.');
+      }
+    };
+    reader.readAsText(file);
+    input.value = '';
+  });
+}
+function saveToFile(){
+  assignmentsByMonth[monthKey(currentMonth)] = monthAssignments;
+  const payload = { people, rolesByType, config, assignmentsByMonth, weekOverridesByMonth, savedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `roster-data_${dateKey(new Date())}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  toast('Saved to file.');
+}
+
+function renderPeopleCount(){
+  const total = rolesByType.midweek.length + rolesByType.weekend.length;
+  document.getElementById('peopleCount').textContent = `${people.length} people · ${total} assignments`;
+}
+
+// ---------- tabs ----------
+function bindTabs(){
+  document.querySelectorAll('nav.tabs button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('section.view').forEach(v=>v.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-'+btn.dataset.tab).classList.add('active');
+      if(btn.dataset.tab === 'midweek') renderTypeAll('midweek');
+      if(btn.dataset.tab === 'weekend') renderTypeAll('weekend');
+      if(btn.dataset.tab === 'reminders') renderReminders();
+    });
+  });
+}
+
+// ---------- people ----------
+function bindPeople(){
+  document.getElementById('addPersonBtn').addEventListener('click', ()=>{
+    const nameEl = document.getElementById('personName');
+    const phoneEl = document.getElementById('personPhone');
+    const name = nameEl.value.trim();
+    if(!name){ toast('Please enter a name.'); return; }
+    people.push({ id: uid(), name, phone: phoneEl.value.trim() });
+    setVal();
+    nameEl.value=''; phoneEl.value='';
+    renderPeople(); renderPeopleCount();
+    renderTypeAll('midweek'); renderTypeAll('weekend');
+  });
+}
+function renderPeople(){
+  const ul = document.getElementById('peopleList');
+  ul.innerHTML = '';
+  if(people.length===0){
+    ul.innerHTML = '<li class="empty-note" style="border:none;">No one added yet.</li>';
+    return;
+  }
+  people.forEach(p=>{
+    const li = document.createElement('li');
+    li.innerHTML = `<span>${escapeHtml(p.name)} ${p.phone?`<span class="meta">· ${escapeHtml(p.phone)}</span>`:''}</span>`;
+    const del = document.createElement('button');
+    del.className='btn danger small';
+    del.textContent='Delete';
+    del.addEventListener('click', ()=>{
+      people = people.filter(x=>x.id!==p.id);
+      setVal();
+      renderPeople(); renderPeopleCount();
+      renderTypeAll('midweek'); renderTypeAll('weekend');
+    });
+    li.appendChild(del);
+    ul.appendChild(li);
+  });
+}
+
+// ---------- per-type (midweek/weekend) panel skeleton ----------
+function buildPanelSkeleton(type){
+  const isMidweek = type === 'midweek';
+  const container = document.getElementById('panel-'+type);
+  container.innerHTML = `
+    <div class="card print-hide">
+      <h2>${TYPE_LABELS[type]} Schedule Days</h2>
+      <p class="note">Set a default weekday, then override any specific week or mark it as no meeting.</p>
+      <div class="row">
+        <label class="note">Default weekday:</label>
+        <select id="defaultWeekday-${type}"></select>
+        <button class="btn secondary small" id="applyDefault-${type}">Apply default to whole month</button>
+      </div>
+      <div id="weekPanel-${type}" style="margin-top:10px;"></div>
+    </div>
+
+    ${isMidweek ? `
+    <div class="card print-hide">
+      <h2>Section Titles</h2>
+      <p class="note">Group assignments into 3 color-coded sections. Colors are fixed — just edit the titles.</p>
+      <div id="categoryEditor-${type}"></div>
+    </div>` : ''}
+
+    <div class="card print-hide">
+      <h2>Add Assignment</h2>
+      <div class="row">
+        <input type="text" id="roleName-${type}" placeholder="${isMidweek ? 'e.g. Scripture Reading, Chairman' : 'e.g. Attendant, Sound, Prayer'}">
+        ${isMidweek ? `<select id="roleCategory-${type}"></select>` : ''}
+        <button class="btn" id="addRoleBtn-${type}">Add</button>
+      </div>
+    </div>
+    <div class="card print-hide">
+      <h2>Assignment List</h2>
+      <p class="note">Use the up/down arrows to reorder — the schedule and PDF follow this order too.</p>
+      <ul class="list" id="rolesList-${type}"></ul>
+    </div>
+
+    <div class="month-nav print-hide">
+      <button class="btn secondary small" data-month-nav="-1" data-type="${type}">‹ Prev</button>
+      <div class="label" id="monthLabel-${type}"></div>
+      <button class="btn secondary small" data-month-nav="1" data-type="${type}">Next ›</button>
+    </div>
+    <div class="card print-hide" style="border-color:var(--accent);background:var(--accent-soft);">
+      <h2>Print or Save as PDF</h2>
+      <p class="note">If in-app PDF generation is blocked in this view, tap <strong>"Show Print View"</strong> — it hides all the settings and leaves just the schedule, so your device's normal share/print button prints exactly that.</p>
+      <button class="btn" id="printViewBtn-${type}">Show Print View</button>
+      <button class="btn secondary" id="exportPdfBtn-${type}" style="margin-left:6px;">(Alternative) Generate PDF in-app</button>
+      <span class="note" id="scheduleNote-${type}"></span>
+    </div>
+    <div id="pdfResultBox-${type}" style="display:none;" class="card print-hide">
+      <h2>PDF Ready</h2>
+      <p class="note"><strong>Note:</strong> your device's own share/print button prints whatever is on screen right now. Tap <strong>"Open PDF"</strong> below first to navigate to the actual PDF, then share/print from there. (If that doesn't work, use "Show Print View" above instead.)</p>
+      <button id="pdfOpenLink-${type}" class="btn" style="display:inline-block;">Open PDF</button>
+      <p class="note" style="margin-top:8px;">(Use your browser's back button to return to the app.)</p>
+    </div>
+    <p class="note print-hide" id="printModeNotice-${type}" style="display:none;font-weight:700;">You're in print view — use your device's share/print button now. <button class="btn secondary small" id="exitPrintView-${type}" style="margin-left:6px;">Back to settings</button></p>
+    ${isMidweek ? `<p class="note print-hide">To assign more than one person to a role, keep picking people from the dropdown. Tap × to remove someone.</p>` : ''}
+    <div id="scheduleBody-${type}"></div>
+  `;
+
+  const defSel = document.getElementById('defaultWeekday-'+type);
+  defSel.innerHTML = weekdayOptionsHtml(config.defaultWeekday[type], false);
+  defSel.addEventListener('change', ()=>{
+    config.defaultWeekday[type] = parseInt(defSel.value, 10);
+    setVal();
+    renderWeekPanel(type);
+    renderSchedule(type);
+  });
+  document.getElementById('applyDefault-'+type).addEventListener('click', ()=>{
+    const mk = monthKey(currentMonth);
+    if(weekOverridesByMonth[mk]) weekOverridesByMonth[mk][type] = {};
+    setVal();
+    renderWeekPanel(type);
+    renderSchedule(type);
+    toast('Default weekday applied to this month.');
+  });
+
+  if(isMidweek){
+    renderCategoryEditor(type);
+    const catSel = document.getElementById('roleCategory-'+type);
+    catSel.innerHTML = `<option value="common">No Section</option>` +
+      config.categories.map(c=>`<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+  }
+
+  document.getElementById('addRoleBtn-'+type).addEventListener('click', ()=>{
+    const el = document.getElementById('roleName-'+type);
+    const name = el.value.trim();
+    if(!name){ toast('Please enter an assignment name.'); return; }
+    const role = { id: uid(), name, category: 'common' };
+    if(isMidweek){
+      const catSel = document.getElementById('roleCategory-'+type);
+      role.category = catSel.value || 'common';
+    }
+    rolesByType[type].push(role);
+    setVal();
+    el.value='';
+    renderRoles(type); renderPeopleCount(); renderSchedule(type);
+  });
+
+  container.querySelectorAll('[data-month-nav]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const dir = parseInt(btn.dataset.monthNav, 10);
+      currentMonth.setMonth(currentMonth.getMonth()+dir);
+      loadMonth();
+    });
+  });
+
+  document.getElementById('exportPdfBtn-'+type).addEventListener('click', ()=> exportPdf(type));
+  document.getElementById('printViewBtn-'+type).addEventListener('click', ()=>{
+    document.body.classList.add('print-mode');
+    document.getElementById('printModeNotice-'+type).style.display = 'block';
+    window.scrollTo(0,0);
+  });
+  document.getElementById('exitPrintView-'+type).addEventListener('click', ()=>{
+    document.body.classList.remove('print-mode');
+    document.getElementById('printModeNotice-'+type).style.display = 'none';
+  });
+}
+
+function renderTypeAll(type){
+  renderRoles(type);
+  renderWeekPanel(type);
+  renderSchedule(type);
+  if(type==='midweek') renderCategoryEditor(type);
+}
+
+// ---------- section title editor (midweek only) ----------
+function renderCategoryEditor(type){
+  const box = document.getElementById('categoryEditor-'+type);
+  if(!box) return;
+  box.innerHTML = '';
+  config.categories.forEach((cat, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'cat-row';
+    row.innerHTML = `<span class="swatch2" style="background:${cat.color}"></span>`;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = cat.label;
+    input.addEventListener('change', ()=>{
+      config.categories[idx].label = input.value.trim() || cat.label;
+      setVal();
+      const catSel = document.getElementById('roleCategory-'+type);
+      if(catSel){
+        const prev = catSel.value;
+        catSel.innerHTML = `<option value="common">No Section</option>` +
+          config.categories.map(c=>`<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+        catSel.value = prev;
+      }
+      renderRoles(type);
+      renderSchedule(type);
+    });
+    row.appendChild(input);
+    box.appendChild(row);
+  });
+}
+
+// ---------- assignment list ----------
+function renderRoles(type){
+  const ul = document.getElementById('rolesList-'+type);
+  const roles = rolesByType[type];
+  ul.innerHTML = '';
+  if(roles.length===0){
+    ul.innerHTML = '<li class="empty-note" style="border:none;">No assignments added yet.</li>';
+    return;
+  }
+  const isMidweek = type === 'midweek';
+  roles.forEach((r, idx)=>{
+    const li = document.createElement('li');
+    li.className = 'role-li';
+    const left = document.createElement('div');
+    left.className = 'left';
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = r.name;
+    left.appendChild(nameSpan);
+    if(isMidweek){
+      const cat = categoryById(r.category);
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.style.background = cat ? cat.color : '#8b8b83';
+      badge.textContent = cat ? cat.label : 'No Section';
+      left.appendChild(badge);
+    }
+
+    const right = document.createElement('div');
+    right.className = 'right';
+
+    if(isMidweek){
+      const catSelect = document.createElement('select');
+      catSelect.innerHTML = `<option value="common">No Section</option>` +
+        config.categories.map(c=>`<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+      catSelect.value = r.category || 'common';
+      catSelect.addEventListener('change', ()=>{
+        r.category = catSelect.value;
+        setVal();
+        renderRoles(type); renderSchedule(type);
+      });
+      right.appendChild(catSelect);
+    }
+
+    const upBtn = document.createElement('button');
+    upBtn.className = 'btn secondary icon';
+    upBtn.textContent = '↑';
+    upBtn.disabled = idx===0;
+    upBtn.addEventListener('click', ()=>{
+      [roles[idx-1], roles[idx]] = [roles[idx], roles[idx-1]];
+      setVal();
+      renderRoles(type); renderSchedule(type);
+    });
+
+    const downBtn = document.createElement('button');
+    downBtn.className = 'btn secondary icon';
+    downBtn.textContent = '↓';
+    downBtn.disabled = idx===roles.length-1;
+    downBtn.addEventListener('click', ()=>{
+      [roles[idx+1], roles[idx]] = [roles[idx], roles[idx+1]];
+      setVal();
+      renderRoles(type); renderSchedule(type);
+    });
+
+    const del = document.createElement('button');
+    del.className='btn danger small';
+    del.textContent='Delete';
+    del.addEventListener('click', ()=>{
+      rolesByType[type] = rolesByType[type].filter(x=>x.id!==r.id);
+      setVal();
+      renderRoles(type); renderPeopleCount(); renderSchedule(type);
+    });
+
+    right.appendChild(upBtn);
+    right.appendChild(downBtn);
+    right.appendChild(del);
+
+    li.appendChild(left);
+    li.appendChild(right);
+    ul.appendChild(li);
+  });
+}
+
+// ---------- per-week weekday overrides ----------
+function renderWeekPanel(type){
+  const box = document.getElementById('weekPanel-'+type);
+  if(!box) return;
+  box.innerHTML = '';
+  const mk = monthKey(currentMonth);
+  if(!weekOverridesByMonth[mk]) weekOverridesByMonth[mk] = {};
+  if(!weekOverridesByMonth[mk][type]) weekOverridesByMonth[mk][type] = {};
+  const overrides = weekOverridesByMonth[mk][type];
+
+  const anchors = getWeekAnchors(currentMonth);
+  anchors.forEach((anchor, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'week-row';
+    const rangeEnd = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()+6);
+    const label = `Week ${idx+1} (${MONTH_LABELS[anchor.getMonth()]} ${anchor.getDate()}–${MONTH_LABELS[rangeEnd.getMonth()]} ${rangeEnd.getDate()})`;
+    row.innerHTML = `<span class="wk-label">${label}</span>`;
+    const sel = document.createElement('select');
+    const currentVal = Object.prototype.hasOwnProperty.call(overrides, idx) ? overrides[idx] : config.defaultWeekday[type];
+    sel.innerHTML = weekdayOptionsHtml(currentVal, true);
+    sel.addEventListener('change', ()=>{
+      overrides[idx] = sel.value === 'none' ? null : parseInt(sel.value, 10);
+      setVal();
+      loadMonth();
+    });
+    row.appendChild(sel);
+    box.appendChild(row);
+  });
+}
+
+// ---------- monthly schedule ----------
+function loadMonth(){
+  const key = monthKey(currentMonth);
+  if(!assignmentsByMonth[key]) assignmentsByMonth[key] = {};
+  monthAssignments = assignmentsByMonth[key];
+  renderWeekPanel('midweek');
+  renderWeekPanel('weekend');
+  renderSchedule('midweek');
+  renderSchedule('weekend');
+}
+
+function renderSchedule(type){
+  const monthLabelEl = document.getElementById('monthLabel-'+type);
+  if(monthLabelEl) monthLabelEl.textContent = `${MONTH_LABELS[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`;
+  const body = document.getElementById('scheduleBody-'+type);
+  if(!body) return;
+  body.innerHTML = '';
+  const roles = rolesByType[type];
+  const noteEl = document.getElementById('scheduleNote-'+type);
+
+  if(roles.length===0){
+    body.innerHTML = `<div class="card"><p class="empty-note">Add a ${TYPE_LABELS[type].toLowerCase()} assignment above first.</p></div>`;
+    if(noteEl) noteEl.textContent='';
+    return;
+  }
+
+  const dates = getMeetingDatesForType(type, currentMonth);
+  if(noteEl) noteEl.textContent = `${dates.length} meeting(s) this month`;
+
+  if(dates.length===0){
+    body.innerHTML = '<div class="card"><p class="empty-note">No meetings are scheduled this month.</p></div>';
+    return;
+  }
+
+  const isMidweek = type === 'midweek';
+
+  dates.forEach(dt=>{
+    const dk = dateKey(dt);
+    if(!monthAssignments[dk]) monthAssignments[dk] = {};
+    const dayObj = monthAssignments[dk];
+    const block = document.createElement('div');
+    block.className = 'day-block';
+    const head = document.createElement('div');
+    head.className = 'day-head';
+    head.innerHTML = `<span>${formatDateEN(dt)}</span><span class="n">${roles.length} assignments</span>`;
+    block.appendChild(head);
+
+    let lastCategory = null;
+    let itemNumber = 0; // running number for categorized (non-"common") rows only, matching the printed bulletin
+    roles.forEach(role=>{
+      if(isMidweek && role.category !== lastCategory){
+        if(role.category !== 'common'){
+          const cat = categoryById(role.category);
+          if(cat){
+            const banner = document.createElement('div');
+            banner.className = 'cat-banner';
+            banner.style.background = cat.color;
+            banner.innerHTML = `<span class="swatch"></span><span>${escapeHtml(cat.label)}</span>`;
+            block.appendChild(banner);
+          }
+        }
+        lastCategory = role.category;
+      }
+
+      const entry = getRoleEntry(dayObj, role.id);
+      const numbered = isMidweek && role.category !== 'common';
+      if(numbered && !entry.skip) itemNumber++;
+      const numberPrefix = (numbered && !entry.skip) ? `${itemNumber}. ` : '';
+
+      const row = document.createElement('div');
+      row.className = 'assign-row';
+      if(entry.skip) row.style.opacity = '0.45';
+      row.innerHTML = `<span class="role-name">${numberPrefix}${escapeHtml(role.name)}</span>`;
+
+      const skipBtn = document.createElement('button');
+      skipBtn.className = 'btn secondary small no-print';
+      skipBtn.textContent = entry.skip ? 'Not held this week (tap to include)' : 'Skip this week';
+      skipBtn.addEventListener('click', ()=>{
+        entry.skip = !entry.skip;
+        setVal();
+        renderSchedule(type);
+      });
+
+      const topicInput = document.createElement('input');
+      topicInput.type = 'text';
+      topicInput.className = 'topic-input';
+      topicInput.placeholder = 'Topic (optional)';
+      topicInput.value = entry.topic || '';
+      topicInput.disabled = entry.skip;
+      topicInput.addEventListener('change', ()=>{
+        entry.topic = topicInput.value;
+        setVal();
+      });
+
+      const assigneesBox = document.createElement('div');
+      assigneesBox.className = 'assignees';
+
+      function refreshChips(){
+        assigneesBox.innerHTML = '';
+        entry.people.forEach(pid=>{
+          const p = people.find(x=>x.id===pid);
+          if(!p) return;
+          const chip = document.createElement('span');
+          chip.className = 'chip';
+          chip.innerHTML = `${escapeHtml(p.name)} `;
+          const rm = document.createElement('button');
+          rm.textContent = '×';
+          rm.className = 'no-print';
+          rm.addEventListener('click', ()=>{
+            entry.people = entry.people.filter(x=>x!==pid);
+            setVal();
+            refreshChips();
+            refreshAddSelect();
+          });
+          chip.appendChild(rm);
+          assigneesBox.appendChild(chip);
+        });
+      }
+
+      const addSelect = document.createElement('select');
+      addSelect.className = 'no-print';
+      addSelect.disabled = entry.skip;
+      function refreshAddSelect(){
+        const available = people.filter(p=>!entry.people.includes(p.id));
+        addSelect.innerHTML = `<option value="">+ Add person</option>` +
+          available.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+      }
+      addSelect.addEventListener('change', ()=>{
+        if(!addSelect.value) return;
+        entry.people.push(addSelect.value);
+        setVal();
+        refreshChips();
+        refreshAddSelect();
+      });
+
+      refreshChips();
+      refreshAddSelect();
+
+      row.appendChild(topicInput);
+      row.appendChild(assigneesBox);
+      row.appendChild(addSelect);
+      row.appendChild(skipBtn);
+      block.appendChild(row);
+    });
+    body.appendChild(block);
+  });
+}
+
+// ---------- PDF export (rendered in Chinese, via canvas so CJK text is never garbled) ----------
+async function exportPdf(type){
+  if(!jsPDF){ toast('Could not load the PDF library.'); return; }
+  const dates = getMeetingDatesForType(type, currentMonth);
+  const roles = rolesByType[type];
+  if(dates.length===0 || roles.length===0){ toast('There is nothing to export yet.'); return; }
+
+  const PAGE_W = 595, PAGE_H = 842;
+  const SCALE = 2;
+  const marginX = 40;
+  const pageRight = 555;
+  const colContentW = 330;
+  const isMidweek = type === 'midweek';
+
+  let canvas, ctx;
+  const pageImages = [];
+
+  function newPage(){
+    canvas = document.createElement('canvas');
+    canvas.width = PAGE_W * SCALE;
+    canvas.height = PAGE_H * SCALE;
+    ctx = canvas.getContext('2d');
+    ctx.scale(SCALE, SCALE);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+    ctx.textBaseline = 'alphabetic';
+  }
+  function commitPage(){ pageImages.push(canvas.toDataURL('image/png')); }
+
+  newPage();
+  let y = 50;
+  ctx.fillStyle = '#141e19';
+  ctx.font = 'bold 16px sans-serif';
+  ctx.fillText(`${currentMonth.getFullYear()}年${currentMonth.getMonth()+1}月${TYPE_LABELS_CN[type]}日程`, marginX, y);
+  y += 26;
+
+  dates.forEach(dt=>{
+    if(y > 730){ commitPage(); newPage(); y = 50; }
+    const dk = dateKey(dt);
+    const dayObj = monthAssignments[dk] || {};
+
+    ctx.fillStyle = '#141e19';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.fillText(formatDateCN(dt), marginX, y);
+    y += 6;
+    ctx.strokeStyle = '#b4b4b4';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(marginX, y + 0.5);
+    ctx.lineTo(pageRight, y + 0.5);
+    ctx.stroke();
+    y += 15;
+
+    // Column header row (任命 / 姓名)
+    ctx.fillStyle = '#8b8b83';
+    ctx.font = 'bold 9px sans-serif';
+    ctx.fillText('任命', marginX + 4, y);
+    ctx.fillText('姓名', marginX + colContentW, y);
+    y += 14;
+
+    let lastCategory = null;
+    let itemNumber = 0; // running number for categorized rows only, matching the printed bulletin; skipped rows don't consume a number
+    roles.forEach(role=>{
+      if(isMidweek && role.category !== lastCategory){
+        if(role.category !== 'common'){
+          const cat = categoryById(role.category);
+          if(cat){
+            if(y > 770){ commitPage(); newPage(); y = 50; }
+            ctx.fillStyle = cat.color;
+            ctx.fillRect(marginX, y - 13, pageRight - marginX, 20);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(cat.label, marginX + 8, y + 1);
+            y += 20;
+          }
+        }
+        lastCategory = role.category;
+      }
+
+      const entry = getRoleEntry(dayObj, role.id);
+      if(entry.skip) return; // not held this week: leave it out entirely, no blank row
+
+      if(y > 770){ commitPage(); newPage(); y = 50; }
+
+      const numbered = isMidweek && role.category !== 'common';
+      if(numbered) itemNumber++;
+      const prefix = numbered ? `${itemNumber}. ` : '';
+      const content = prefix + roleDisplayText(role, entry);
+      const namesText = entry.people.length ? entry.people.map(personName).filter(Boolean).join(' · ') : '(未分配)';
+
+      ctx.fillStyle = '#141e19';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(content, marginX + 4, y);
+      ctx.fillText(namesText, marginX + colContentW, y);
+      y += 18;
+    });
+    y += 14;
+  });
+  commitPage();
+
+  const doc = new jsPDF({ unit:'pt', format:'a4' });
+  pageImages.forEach((imgData, idx)=>{
+    if(idx>0) doc.addPage();
+    doc.addImage(imgData, 'PNG', 0, 0, PAGE_W, PAGE_H);
+  });
+
+  const filename = `${currentMonth.getMonth()+1}月的${TYPE_LABELS_CN[type]}.pdf`;
+  const blob = doc.output('blob');
+  const blobUrl = URL.createObjectURL(blob);
+
+  const box = document.getElementById('pdfResultBox-'+type);
+  const link = document.getElementById('pdfOpenLink-'+type);
+  link.textContent = `Open ${filename}`;
+  link.onclick = ()=>{ window.location.href = blobUrl; };
+  box.style.display = 'block';
+  box.scrollIntoView({ behavior:'smooth', block:'center' });
+
+  try{
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }catch(e){ /* auto-download may be blocked; the Open button still works */ }
+
+  toast('PDF is ready — see the box below.');
+}
+
+// ---------- reminders ----------
+function bindReminders(){
+  document.getElementById('refreshReminders').addEventListener('click', renderReminders);
+  document.getElementById('leadDays').addEventListener('change', renderReminders);
+}
+
+function renderReminders(){
+  const lead = parseInt(document.getElementById('leadDays').value, 10);
+  const listEl = document.getElementById('reminderList');
+  listEl.innerHTML = '';
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const monthsToCheck = [new Date(today.getFullYear(), today.getMonth(), 1), new Date(today.getFullYear(), today.getMonth()+1, 1)];
+  let found = [];
+
+  ['midweek','weekend'].forEach(type=>{
+    const roles = rolesByType[type];
+    monthsToCheck.forEach(m=>{
+      const key = monthKey(m);
+      const data = assignmentsByMonth[key] || {};
+      const dates = getMeetingDatesForType(type, m);
+      dates.forEach(dt=>{
+        const diffDays = Math.round((dt - today) / 86400000);
+        if(diffDays === lead){
+          const dk = dateKey(dt);
+          const dayObj = data[dk] || {};
+          roles.forEach(role=>{
+            const entry = getRoleEntry(dayObj, role.id);
+            if(entry.skip) return;
+            entry.people.forEach(pid=>{
+              found.push({ date: dt, role, personId: pid, type, topic: entry.topic });
+            });
+          });
+        }
+      });
+    });
+  });
+
+  if(found.length===0){
+    listEl.innerHTML = `<p class="empty-note">No assignments due in ${lead} day(s).</p>`;
+    return;
+  }
+
+  found.forEach(item=>{
+    const p = people.find(x=>x.id===item.personId);
+    if(!p) return;
+    const dt = item.date;
+    const dateStrEN = formatDateEN(dt);
+    const dateStrCN = formatDateCN(dt);
+    const topicLine = item.topic ? `\n主题：${item.topic}` : '';
+    // The message itself is generated in Chinese since it is sent to the congregation, not used within the app.
+    const msg = `【聚会提醒】\n${p.name}，${dateStrCN} ${TYPE_LABELS_CN[item.type]}中，你被安排负责"${item.role.name}"。${topicLine}\n谢谢你一直忠心尽力地准备节目，辛苦了！如果这次刚好不方便安排，也请提前告诉我一声，好让我们及早调整，谢谢你！`;
+    const box = document.createElement('div');
+    box.className = 'reminder-item';
+    box.innerHTML = `
+      <strong>${escapeHtml(p.name)}</strong>
+      <span class="badge" style="background:var(--gold);">${escapeHtml(item.role.name)}</span>
+      <span class="meta"> · ${dateStrEN} · ${TYPE_LABELS[item.type]}</span>
+      <div class="txt">${escapeHtml(msg)}</div>
+    `;
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn secondary small';
+    copyBtn.textContent = 'Copy Message';
+    copyBtn.addEventListener('click', async ()=>{
+      try{
+        await navigator.clipboard.writeText(msg);
+        toast('Copied — paste it into KakaoTalk or a text message.');
+      }catch(e){ toast('Copy failed.'); }
+    });
+    box.appendChild(copyBtn);
+    listEl.appendChild(box);
+  });
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+</script>
+</body>
+</html>
